@@ -12,6 +12,6 @@ foreach($servers as $ip => $status) {
     }
 }
 
-$servers->down('10.254.30.40:11211');
+#$servers->down('10.254.30.40:11211');
 print_r($servers->array_keys());
 print_r($servers->array_values());

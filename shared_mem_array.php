@@ -103,11 +103,16 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
 
     private function isLocked()
     {
-        $result = FALSE;
-        $shm = @shmop_open($this->sem_key, 'a', 0660, 1);
-        if ($shm !== FALSE) {
-            shmop_close($shm);
-            $result = TRUE;
+        $result = TRUE;
+        for($tries = static::$locktries; $tries >= 0; $tries--) {
+            $shm = @shmop_open($this->sem_key, 'a', 0660, 1);
+            if ($shm == FALSE) {
+                $result = FALSE;
+                break;
+            } else {
+                shmop_close($shm);
+            }
+            usleep(50);
         }
         return $result;
     }
