@@ -3,7 +3,7 @@
 SharedMemArray is intended to be a simple pattern for quickly creating shared memory arrays with PHP 5.3+.
 Should be thread safe but has not been proven under heavy load yet.
 
-Requires shmop, sysvsem, and msgpack.
+Requires shmop, and msgpack.
 
 ## Authors and contributors
 

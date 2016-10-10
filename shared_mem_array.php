@@ -20,22 +20,18 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     private   $cache = array();
 
     private   $shm_key = null;
-    private   $sem_key = null;
+    private   $lock_key = null;
 
-    private   $sem  = null;
     private   $lock = null;
-
-    private   $flock_fname = null;
 
     protected static $instances = array();
 
     protected function __construct()
     {
         $reflect = new ReflectionClass(get_called_class());
-        $this->flock_fname = $reflect->getFileName();
 
-        $this->shm_key = ftok($this->flock_fname, 'h');
-        $this->sem_key = ftok($this->flock_fname, 'e');
+        $this->shm_key = ftok($reflect->getFileName(), 'h');
+        $this->lock_key = ftok($reflect->getFileName(), 'l');
     }
 
     public function __destruct()
@@ -103,7 +99,7 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     {
         $result = TRUE;
         for($tries = static::$locktries; $tries >= 0; $tries--) {
-            $shm = @shmop_open($this->sem_key, 'a', 0660, 1);
+            $shm = @shmop_open($this->lock_key, 'a', 0660, 1);
             if ($shm == FALSE) {
                 $result = FALSE;
                 break;
@@ -118,16 +114,12 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     private function acquireLock()
     {
         $result = FALSE;
-        if ($this->acquireSemaphore()) {
-            $key = ftok($this->flock_fname, 'l');
-            for($tries = static::$locktries; $tries >= 0; $tries--) {
-                if (($this->lock = @shmop_open($key, 'n', 0660, 8)) !== FALSE) {
-                    $result = TRUE;
-                    break;
-                }
-                usleep(50);
+        for($tries = static::$locktries; $tries >= 0; $tries--) {
+            if (($this->lock = @shmop_open($this->lock_key, 'n', 0660, 8)) !== FALSE) {
+                $result = TRUE;
+                break;
             }
-            $this->releaseSemaphore();
+            usleep(50);
         }
         return $result;
     }
@@ -143,32 +135,6 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
                 }
                 usleep(50);
             }
-        }
-        return $result;
-    }
-
-    private function acquireSemaphore()
-    {
-        $result = FALSE;
-        if (is_null($this->sem)) {
-            $this->sem = sem_get($this->sem_key, 1, 0660, 1);
-            if (sem_acquire($this->sem)) {
-                $result = TRUE;
-            } else {
-                $this->sem = null;
-            }
-        } else {
-            $result = TRUE;
-        }
-        return $result;
-    }
-
-    private function releaseSemaphore()
-    {
-        $result = FALSE;
-        if ($this->sem) {
-            $result = sem_release($this->sem);
-            $this->sem = null;
         }
         return $result;
     }
@@ -248,7 +214,6 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     {
         foreach (self::$instances as $instance) {
             $instance->releaseLock();
-            $instance->releaseSemaphore();
         }
     }
 }
