@@ -114,12 +114,8 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     private function acquireLock()
     {
         $result = FALSE;
-        for($tries = static::$locktries; $tries >= 0; $tries--) {
-            if (($this->lock = @shmop_open($this->lock_key, 'n', 0660, 8)) !== FALSE) {
-                $result = TRUE;
-                break;
-            }
-            usleep(50);
+        if (($this->lock = @shmop_open($this->lock_key, 'n', 0660, 8)) !== FALSE) {
+            $result = TRUE;
         }
         return $result;
     }
@@ -128,12 +124,8 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     {
         $result = FALSE;
         if ($this->lock) {
-            for($tries = static::$locktries; $tries >= 0; $tries--) {
-                if ($result = shmop_delete($this->lock)) {
-                    $this->lock = null;
-                    break;
-                }
-                usleep(50);
+            if ($result = shmop_delete($this->lock)) {
+                $this->lock = null;
             }
         }
         return $result;
