@@ -41,8 +41,6 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     public function __destruct()
     {
         $this->write();
-        $this->releaseLock();
-        $this->releaseSemaphore();
     }
 
     public static function getInstance($name = null)
@@ -138,15 +136,12 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     {
         $result = FALSE;
         if ($this->lock) {
-            if ($this->acquireSemaphore()) {
-                for($tries = static::$locktries; $tries >= 0; $tries--) {
-                    if ($result = shmop_delete($this->lock)) {
-                        $this->lock = null;
-                        break;
-                    }
-                    usleep(50);
+            for($tries = static::$locktries; $tries >= 0; $tries--) {
+                if ($result = shmop_delete($this->lock)) {
+                    $this->lock = null;
+                    break;
                 }
-                $this->releaseSemaphore();
+                usleep(50);
             }
         }
         return $result;
@@ -248,4 +243,14 @@ abstract class SharedMemArray implements ArrayAccess, Iterator, Countable
     private function __clone() {}
     private function __sleep() {}
     private function __wakeup() {}
+
+    public static function shutdown()
+    {
+        foreach (self::$instances as $instance) {
+            $instance->releaseLock();
+            $instance->releaseSemaphore();
+        }
+    }
 }
+
+register_shutdown_function(array('SharedMemArray', 'shutdown'));
